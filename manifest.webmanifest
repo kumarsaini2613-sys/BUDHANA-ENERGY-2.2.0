@@ -1,0 +1,33 @@
+{
+  "id": "./",
+  "name": "SUBSTATION ENERGY AUDIT PRO",
+  "short_name": "ENERGY AUDIT",
+  "description": "29 बिजलीघरों का Substation Energy Audit और Energy Balance",
+  "lang": "hi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f6f8",
+  "theme_color": "#123b55",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
