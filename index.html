@@ -29,6 +29,19 @@ button.secondary{background:#e7eff3;color:#17465b}button.danger{background:#a33}
 table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:8px;border-bottom:1px solid var(--line);text-align:right}td:first-child,th:first-child{text-align:left}
 .tablewrap{overflow:auto}.hidden{display:none}.lock{color:#147d55;font-size:12px}
 @media(max-width:520px){main{padding:8px}.card{padding:11px}header h1{font-size:18px}.toolbar button{flex:1}}
+
+.sld-wrap{min-width:580px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.sld-node{border:2px solid #176b87;border-radius:9px;background:#f3f8fa;padding:9px 12px;text-align:center;min-width:170px;font-size:13px}
+.sld-node strong{display:block;color:#123b55;margin-bottom:3px}
+.sld-node small{display:block;color:#52636d}
+.sld-line{width:3px;height:22px;background:#176b87}
+.sld-branches{display:flex;align-items:flex-start;justify-content:center;gap:18px;width:100%}
+.sld-col{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:250px}
+.sld-bus{height:6px;width:95%;background:#176b87;border-radius:5px}
+.sld-feeders{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.sld-feeder{border:1px solid #147d55;background:#effaf4;border-radius:8px;padding:8px;min-width:145px;text-align:center;font-size:12px}
+.sld-feeder b{display:block;color:#145b3d}
+.sld-caption{font-size:11px;color:#60717b;text-align:center}
 @media print{body{background:white}header,.toolbar,.no-print,#setup,#stationList{display:none!important}.card,.section{box-shadow:none;break-inside:avoid}main{max-width:none;padding:0}}
 </style></head>
 <body>
@@ -40,7 +53,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:8px;borde
 </div>
 <div id="work" class="hidden">
 <div class="card">
-<div class="toolbar no-print"><button class="secondary" onclick="showList()">← बिजलीघर सूची</button><button onclick="saveAll()" class="green">डेटा सेव करें</button><button class="secondary" onclick="print()">रिपोर्ट / PDF</button><button class="secondary" onclick="exportCSV()">CSV डाउनलोड</button></div>
+<div class="toolbar no-print"><button class="secondary" onclick="showList()">← बिजलीघर सूची</button><button onclick="saveAll()" class="green">डेटा सेव करें</button><button class="secondary" onclick="print()">रिपोर्ट / PDF</button><button class="secondary" onclick="exportCSV()">CSV डाउनलोड</button><button class="secondary" onclick="toggleSLD()">SLD डायग्राम</button></div>
 <h2 id="stationTitle"></h2>
 <div class="grid">
 <div><label>रीडिंग अवधि / तारीख</label><input id="period" placeholder="जैसे 01-11-2026 से 30-11-2026" onchange="saveAll()"></div>
@@ -53,6 +66,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:8px;borde
 <h2>ट्रांसफॉर्मर, इनकमर और आउटगोइंग फीडर</h2>
 <div class="toolbar no-print"><button onclick="addTransformer()">＋ ट्रांसफॉर्मर जोड़ें</button><button class="secondary" onclick="toggleConfig()">मीटर सेटिंग लॉक / अनलॉक</button><span id="lockStatus" class="lock">मीटर सेटिंग लॉक है</span></div>
 <div id="transformerArea"></div>
+</div>
+<div class="card hidden" id="sldCard">
+<h2>⚡ Single Line Diagram (SLD)</h2>
+<div class="muted" id="sldSubtitle"></div>
+<div id="sldDiagram" style="overflow-x:auto;padding:8px 0"></div>
 </div>
 <div class="card">
 <h2>📊 बिजलीघर का एनर्जी बैलेंस</h2>
@@ -78,8 +96,33 @@ function blank(){return {period:"",txUnit:"MWh",txReading:"",transformers:[]}}
 function getData(){if(!all[current])all[current]=blank();return all[current]}
 function persist(){localStorage.setItem(KEY,JSON.stringify(all))}
 function showList(){document.getElementById("setup").classList.remove("hidden");document.getElementById("work").classList.add("hidden");renderList()}
+
+function toggleSLD(){
+ const panel=document.getElementById("sldCard");
+ panel.classList.toggle("hidden");
+ if(!panel.classList.contains("hidden")) renderSLD();
+}
+function renderSLD(){
+ const d=getData(),host=document.getElementById("sldDiagram");
+ document.getElementById("sldSubtitle").textContent=names[current]+" · configured connection layout";
+ const safe=s=>esc(s||"");
+ if(!d.transformers.length){host.innerHTML='<p class="muted">पहले Transformer, Incomer और Feeder जोड़ें।</p>';return;}
+ host.innerHTML='<div class="sld-wrap"><div class="sld-node"><strong>33 KV SUPPLY</strong><small>Transmission input</small></div><div class="sld-line"></div><div class="sld-branches">'+
+ d.transformers.map(t=>'<div class="sld-col"><div class="sld-node"><strong>'+safe(t.name)+'</strong><small>33/11 KV · '+safe(t.capacity||"MVA क्षमता दर्ज नहीं")+'</small></div>'+
+ t.incomers.map(inc=>'<div class="sld-line"></div><div class="sld-node"><strong>'+safe(inc.name)+'</strong><small>Meter: '+safe(inc.meter)+' · MF: '+safe(inc.mf)+'</small></div><div class="sld-line"></div><div class="sld-bus"></div><div class="sld-feeders">'+
+ inc.feeders.map(f=>'<div class="sld-feeder"><b>'+safe(f.name)+'</b><span>Meter: '+safe(f.meter)+'</span><br><span>MF: '+safe(f.mf)+'</span></div>').join("")+
+ '</div>').join("")+'</div>').join("")+'</div><div class="sld-caption">यह कॉन्फ़िगरेशन SLD है; वास्तविक ON/OFF या SCADA स्थिति नहीं दर्शाता।</div></div>';
+}
 function renderList(){let el=document.getElementById("stationList");el.innerHTML=names.map((n,i)=>`<button class="substation" onclick="openStation(${i})"><span>${i+1}. ${n}</span><span>खोलें →</span></button>`).join("")}
-function openStation(i){current=i;if(!all[i])all[i]=blank();document.getElementById("setup").classList.add("hidden");document.getElementById("work").classList.remove("hidden");document.getElementById("stationTitle").textContent=(i+1)+". "+names[i];let d=getData();document.getElementById("period").value=d.period||"";document.getElementById("txUnit").value=d.txUnit||"MWh";document.getElementById("txReading").value=d.txReading||"";render();updateLock()}
+function seedAlipurAterna(d){
+ if(d.transformers && d.transformers.length) return;
+ d.transformers=[
+  {id:"alipur-tr1",name:"Transformer 1",capacity:"",incomers:[{id:"alipur-in1",name:"Incoming 1",meter:"306442",unit:"MWh",mf:"0.06",prev:"",curr:"",feeders:[{id:"alipur-f1",name:"Kaserva Town",meter:"HP 3009313",unit:"MWh",mf:"4",prev:"",curr:""}]}]},
+  {id:"alipur-tr2",name:"Transformer 2",capacity:"",incomers:[{id:"alipur-in2",name:"Incoming 2",meter:"306283",unit:"MWh",mf:"0.06",prev:"",curr:"",feeders:[{id:"alipur-f2",name:"Alipura Aterna Town",meter:"HP 3009201",unit:"MWh",mf:"4",prev:"",curr:""},{id:"alipur-f3",name:"Aterna PTW",meter:"HP 3009202",unit:"MWh",mf:"4",prev:"",curr:""}]}]}
+ ];
+ persist();
+}
+function openStation(i){current=i;if(!all[i])all[i]=blank();if(i===0)seedAlipurAterna(all[i]);document.getElementById("setup").classList.add("hidden");document.getElementById("work").classList.remove("hidden");document.getElementById("stationTitle").textContent=(i+1)+". "+names[i];let d=getData();document.getElementById("period").value=d.period||"";document.getElementById("txUnit").value=d.txUnit||"MWh";document.getElementById("txReading").value=d.txReading||"";render();updateLock();if(!document.getElementById("sldCard").classList.contains("hidden"))renderSLD()}
 function uid(){return Math.random().toString(36).slice(2,10)}
 function addTransformer(){getData().transformers.push({id:uid(),name:"Transformer "+(getData().transformers.length+1),capacity:"",incomers:[newIncomer()]});saveAll();render()}
 function newIncomer(){return {id:uid(),name:"Incomer",meter:"",unit:"MWh",mf:"1",prev:"",curr:"",feeders:[]}}
@@ -108,7 +151,7 @@ function removeF(tid,iid,fid){let i=getData().transformers.find(x=>x.id===tid).i
 function toggleConfig(){unlocked=!unlocked;updateLock();render()}
 function updateLock(){document.getElementById("lockStatus").textContent=unlocked?"मीटर सेटिंग अनलॉक है":"मीटर सेटिंग लॉक है"}
 function saveAll(){if(current<0)return;let d=getData();d.period=document.getElementById("period").value;d.txUnit=document.getElementById("txUnit").value;d.txReading=document.getElementById("txReading").value;persist();calc()}
-function calc(){if(current<0)return;let d=getData(),ins=0,outs=0,rows=[];d.transformers.forEach(t=>t.incomers.forEach(i=>{let ie=energy(i),oe=i.feeders.reduce((s,f)=>s+energy(f),0);ins+=ie;outs+=oe;rows.push([t.name,i.name,ie,oe,ie-oe])}));let tx=txEnergy(d);document.getElementById("txTotal").textContent=tx.toFixed(6)+" MWh";document.getElementById("inTotal").textContent=ins.toFixed(6)+" MWh";document.getElementById("outTotal").textContent=outs.toFixed(6)+" MWh";document.getElementById("txDiff").textContent=(tx-ins).toFixed(6)+" MWh";document.getElementById("ioDiff").textContent=(ins-outs).toFixed(6)+" MWh";document.getElementById("balanceTable").innerHTML="<table><tr><th>Transformer</th><th>Incomer</th><th>Incomer MWh</th><th>Outgoing MWh</th><th>अंतर MWh</th></tr>"+rows.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${r[2].toFixed(6)}</td><td>${r[3].toFixed(6)}</td><td>${r[4].toFixed(6)}</td></tr>`).join("")+"</table>"}
+function calc(){if(current<0)return;if(document.getElementById("sldCard")&&!document.getElementById("sldCard").classList.contains("hidden"))renderSLD();let d=getData(),ins=0,outs=0,rows=[];d.transformers.forEach(t=>t.incomers.forEach(i=>{let ie=energy(i),oe=i.feeders.reduce((s,f)=>s+energy(f),0);ins+=ie;outs+=oe;rows.push([t.name,i.name,ie,oe,ie-oe])}));let tx=txEnergy(d);document.getElementById("txTotal").textContent=tx.toFixed(6)+" MWh";document.getElementById("inTotal").textContent=ins.toFixed(6)+" MWh";document.getElementById("outTotal").textContent=outs.toFixed(6)+" MWh";document.getElementById("txDiff").textContent=(tx-ins).toFixed(6)+" MWh";document.getElementById("ioDiff").textContent=(ins-outs).toFixed(6)+" MWh";document.getElementById("balanceTable").innerHTML="<table><tr><th>Transformer</th><th>Incomer</th><th>Incomer MWh</th><th>Outgoing MWh</th><th>अंतर MWh</th></tr>"+rows.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${r[2].toFixed(6)}</td><td>${r[3].toFixed(6)}</td><td>${r[4].toFixed(6)}</td></tr>`).join("")+"</table>"}
 function exportCSV(){let d=getData(),rows=[["Substation",names[current]],["Period",d.period],["33KV transmission",txEnergy(d)+" MWh"],[],["Transformer","Incomer/Feeder","Meter No","Unit","MF","Previous Date","Previous Reading","Current Date","Current Reading","Consumption MWh"]];d.transformers.forEach(t=>t.incomers.forEach(i=>{rows.push([t.name,i.name,i.meter,i.unit,i.mf,i.prevDate||"",i.prev,i.currDate||"",i.curr,energy(i)]);i.feeders.forEach(f=>rows.push([t.name,f.name,f.meter,f.unit,f.mf,f.prevDate||"",f.prev,f.currDate||"",f.curr,energy(f)]))}));let csv=rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");download(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),names[current].replaceAll(" ","_")+"_energy.csv")}
 function backup(){download(new Blob([JSON.stringify(all,null,2)],{type:"application/json"}),"substation_energy_backup.json")}
 function restore(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{all=JSON.parse(r.result);persist();alert("बैकअप सफलतापूर्वक वापस आ गया।");if(current>=0)openStation(current);else renderList()}catch{alert("यह बैकअप फाइल सही नहीं है।")}};r.readAsText(f)}
