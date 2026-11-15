@@ -108,17 +108,21 @@ function renderSLD(){
  const safe=s=>esc(s||"");
  if(!d.transformers.length){host.innerHTML='<p class="muted">पहले Transformer, Incomer और Feeder जोड़ें।</p>';return;}
  host.innerHTML='<div class="sld-wrap"><div class="sld-node"><strong>33 KV SUPPLY</strong><small>Transmission input</small></div><div class="sld-line"></div><div class="sld-branches">'+
- d.transformers.map(t=>'<div class="sld-col"><div class="sld-node"><strong>'+safe(t.name)+'</strong><small>33/11 KV · '+safe(t.capacity||"MVA क्षमता दर्ज नहीं")+'</small></div>'+
+ d.transformers.map(t=>'<div class="sld-col"><div class="sld-node"><strong>'+safe(t.name)+'</strong><small>33/11 KV · '+safe(t.capacity?t.capacity+" MVA":"MVA क्षमता दर्ज नहीं")+' · स्थिति: '+safe(t.status||"दर्ज नहीं")+'</small></div>'+
  t.incomers.map(inc=>'<div class="sld-line"></div><div class="sld-node"><strong>'+safe(inc.name)+'</strong><small>Meter: '+safe(inc.meter)+' · MF: '+safe(inc.mf)+'</small></div><div class="sld-line"></div><div class="sld-bus"></div><div class="sld-feeders">'+
  inc.feeders.map(f=>'<div class="sld-feeder"><b>'+safe(f.name)+'</b><span>Meter: '+safe(f.meter)+'</span><br><span>MF: '+safe(f.mf)+'</span></div>').join("")+
- '</div>').join("")+'</div>').join("")+'</div><div class="sld-caption">यह कॉन्फ़िगरेशन SLD है; वास्तविक ON/OFF या SCADA स्थिति नहीं दर्शाता।</div></div>';
+ '</div>').join("")+'</div>').join("")+'</div><div class="sld-caption">यह SLD में ON/OFF स्थिति ऐप में दर्ज की गई स्थिति है; यह लाइव SCADA संकेत नहीं है।</div></div>';
 }
 function renderList(){let el=document.getElementById("stationList");el.innerHTML=names.map((n,i)=>`<button class="substation" onclick="openStation(${i})"><span>${i+1}. ${n}</span><span>खोलें →</span></button>`).join("")}
 function seedAlipurAterna(d){
- if(d.transformers && d.transformers.length) return;
+ if(d.transformers && d.transformers.length){
+  d.transformers.forEach((t)=>{if(!t.capacity)t.capacity="10";if(!t.status)t.status="ON";});
+  persist();
+  return;
+ }
  d.transformers=[
-  {id:"alipur-tr1",name:"Transformer 1",capacity:"",incomers:[{id:"alipur-in1",name:"Incoming 1",meter:"306442",unit:"MWh",mf:"0.06",prev:"",curr:"",feeders:[{id:"alipur-f1",name:"Kaserva Town",meter:"HP 3009313",unit:"MWh",mf:"4",prev:"",curr:""}]}]},
-  {id:"alipur-tr2",name:"Transformer 2",capacity:"",incomers:[{id:"alipur-in2",name:"Incoming 2",meter:"306283",unit:"MWh",mf:"0.06",prev:"",curr:"",feeders:[{id:"alipur-f2",name:"Alipura Aterna Town",meter:"HP 3009201",unit:"MWh",mf:"4",prev:"",curr:""},{id:"alipur-f3",name:"Aterna PTW",meter:"HP 3009202",unit:"MWh",mf:"4",prev:"",curr:""}]}]}
+  {id:"alipur-tr1",name:"Transformer 1",capacity:"10",status:"ON",incomers:[{id:"alipur-in1",name:"Incoming 1",meter:"306442",unit:"MWh",mf:"0.06",prev:"",curr:"",feeders:[{id:"alipur-f1",name:"Kaserva Town",meter:"HP 3009313",unit:"MWh",mf:"4",prev:"",curr:""}]}]},
+  {id:"alipur-tr2",name:"Transformer 2",capacity:"10",status:"ON",incomers:[{id:"alipur-in2",name:"Incoming 2",meter:"306283",unit:"MWh",mf:"0.06",prev:"",curr:"",feeders:[{id:"alipur-f2",name:"Alipura Aterna Town",meter:"HP 3009201",unit:"MWh",mf:"4",prev:"",curr:""},{id:"alipur-f3",name:"Aterna PTW",meter:"HP 3009202",unit:"MWh",mf:"4",prev:"",curr:""}]}]}
  ];
  persist();
 }
@@ -135,7 +139,7 @@ function energy(x){return mwh((val(x.curr)-val(x.prev))*val(x.mf),x.unit)}
 function txEnergy(d){return mwh(val(d.txReading),d.txUnit)}
 function render(){let d=getData(),root=document.getElementById("transformerArea");root.innerHTML=d.transformers.map((t,ti)=>`
 <div class="section"><h3>🔌 ${esc(t.name||"Transformer")}</h3>
-<div class="grid"><div><label>Transformer नाम</label><input value="${esc(t.name)}" ${unlocked?"":"disabled"} onchange="setVal(getData().transformers[${ti}],'name',this.value)"></div><div><label>क्षमता (MVA)</label><input value="${esc(t.capacity)}" ${unlocked?"":"disabled"} onchange="setVal(getData().transformers[${ti}],'capacity',this.value)"></div></div>
+<div class="grid"><div><label>Transformer नाम</label><input value="${esc(t.name)}" ${unlocked?"":"disabled"} onchange="setVal(getData().transformers[${ti}],'name',this.value)"></div><div><label>क्षमता (MVA)</label><input type="number" min="0" step="any" value="${esc(t.capacity)}" ${unlocked?"":"disabled"} onchange="setVal(getData().transformers[${ti}],'capacity',this.value)"></div><div><label>ट्रांसफॉर्मर स्थिति</label><select ${unlocked?"":"disabled"} onchange="setVal(getData().transformers[${ti}],'status',this.value)"><option value="ON" ${(t.status||"ON")==="ON"?"selected":""}>ON (चालू)</option><option value="OFF" ${t.status==="OFF"?"selected":""}>OFF (बंद)</option></select></div></div>
 <div class="toolbar no-print"><button class="secondary" onclick="addIncomer('${t.id}')">＋ Incomer जोड़ें</button><button class="danger" onclick="removeT('${t.id}')">Transformer हटाएँ</button></div>
 ${t.incomers.map((inc,ii)=>`<div class="reading"><h3>Incomer ${ii+1}</h3>${meterFields(inc,ti,ii,"incomer")}
 <div class="toolbar no-print"><button class="secondary" onclick="addFeeder('${t.id}','${inc.id}')">＋ Outgoing Feeder जोड़ें</button><button class="danger" onclick="removeI('${t.id}','${inc.id}')">Incomer हटाएँ</button></div>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "substation-energy-audit-pro-v2";
+const CACHE_NAME = "substation-energy-audit-pro-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
